@@ -2,10 +2,17 @@ require 'sinatra'
 require "sinatra/reloader"
 require 'rest-client'
 require 'json'
+require 'httparty'
+require 'nokogiri'
+require 'uri'
+require 'date'
+require 'csv'
 
 before do
     p "****************"
     p params
+    p request.path_info #사용자가 요청보낸 경로
+    p request.fullpath #파라미터
     p "****************"
 end
 
@@ -144,5 +151,36 @@ get '/form' do
 end
 
 get '/search' do
-    
+   @keyword= params[:keyword]
+   url = 'https://search.naver.com/search.naver?query='
+    #erb :search
+    redirect to (url+@keyword)
+end
+
+get '/opgg' do
+   erb :opgg 
+end
+
+get '/opggresult' do
+    url = "http://www.op.gg/summoner/userName="
+   @userName= params[:userName]
+   @encodeName=URI.encode(@userName) #한글을 위해서 
+   
+   @res = HTTParty.get(url+@encodeName)
+   @doc=Nokogiri::HTML(@res.body)
+   @win =@doc.css("#SummonerLayoutContent > div.tabItem.Content.SummonerLayoutContent.summonerLayout-summary > div.SideContent > div.TierBox.Box > div.SummonerRatingMedium > div.TierRankInfo > div.TierInfo > span.WinLose > span.wins").text
+   @lose=@doc.css("#SummonerLayoutContent > div.tabItem.Content.SummonerLayoutContent.summonerLayout-summary > div.SideContent > div.TierBox.Box > div.SummonerRatingMedium > div.TierRankInfo > div.TierInfo > span.WinLose > span.losses").text
+   @rank=@doc.css("#SummonerLayoutContent > div.tabItem.Content.SummonerLayoutContent.summonerLayout-summary > div.SideContent > div.TierBox.Box > div.SummonerRatingMedium > div.TierRankInfo > div.TierRank > span").text
+   
+  # File.open('opgg.txt ','a+') do |f|
+      # f.write("#{@userName}#{@win},#{@lose},#{@rank}")
+       #파일이라는 모듈을 사용하여 없으면 생성, 있으면 줄추가(a+)
+       
+  # end
+  
+  CSV.open('opgg.csv','a+') do |c|
+      c <<[@userName,@win,@lose,@rank]
+  end
+   
+   erb :opggresult 
 end
